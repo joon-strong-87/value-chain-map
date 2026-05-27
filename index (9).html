@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>밸류체인 맵 — Value Chain Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #0d0f14;
+  --bg2:       #13161e;
+  --bg3:       #1a1d27;
+  --bg4:       #20232f;
+  --border:    rgba(255,255,255,0.07);
+  --border2:   rgba(255,255,255,0.13);
+  --text:      #e8eaf0;
+  --text2:     #8b8fa8;
+  --text3:     #555870;
+  --accent:    #4f7fff;
+  --good:      #3ecf8e;
+  --good-bg:   rgba(62,207,142,0.1);
+  --warn:      #f5a623;
+  --warn-bg:   rgba(245,166,35,0.1);
+  --bad:       #f04e4e;
+  --bad-bg:    rgba(240,78,78,0.1);
+  --supplier:  #3ecf8e;
+  --customer:  #4f7fff;
+  --competitor:#f5a623;
+  --radius:    10px;
+  --radius-lg: 14px;
+  --header-h:  52px;
+  --tab-h:     48px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; -webkit-tap-highlight-color: transparent; }
+
+body {
+  font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 14px;
+  line-height: 1.6;
+  overscroll-behavior: none;
+}
+
+/* ─── HEADER ─── */
+header {
+  height: var(--header-h);
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  background: rgba(13,15,20,0.95);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border);
+}
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.logo-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 7px var(--accent);
+  animation: pulse 2.4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes pulse {
+  0%,100% { opacity:1; transform:scale(1); }
+  50%      { opacity:.55; transform:scale(.82); }
+}
+.header-date {
+  font-size: 11px;
+  color: var(--text3);
+  font-family: 'DM Mono', monospace;
+}
+
+/* ─── DESKTOP LAYOUT ─── */
+.desktop-layout {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  grid-template-rows: auto 1fr;
+  height: calc(100vh - var(--header-h));
+}
+.corp-section {
+  grid-column: 1/2;
+  padding: 18px 24px 0;
+  border-bottom: 1px solid var(--border);
+}
+.chain-panel {
+  grid-column: 1/2;
+  overflow-y: auto;
+  padding: 22px 24px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--bg4) transparent;
+}
+.log-panel {
+  grid-column: 2/3;
+  grid-row: 1/3;
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ─── MOBILE LAYOUT ─── */
+.mobile-layout { display: none; flex-direction: column; height: calc(100vh - var(--header-h)); }
+
+/* ─── SECTION LABEL ─── */
+.section-label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text3);
+  margin-bottom: 11px;
+}
+
+/* ─── CORP GRID ─── */
+.corp-grid {
+  display: flex;
+  gap: 9px;
+  padding-bottom: 18px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.corp-grid::-webkit-scrollbar { display: none; }
+
+.corp-card {
+  flex-shrink: 0;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 13px 16px;
+  cursor: pointer;
+  transition: all 0.16s ease;
+  min-width: 120px;
+  position: relative;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.corp-card::before {
+  content:'';
+  position:absolute; inset:0;
+  background: linear-gradient(135deg, var(--accent) 0%, transparent 60%);
+  opacity:0; transition:opacity .16s;
+}
+.corp-card:active { transform: scale(0.97); }
+.corp-card.active { border-color: var(--accent); background: rgba(79,127,255,0.08); }
+.corp-card.active::before { opacity: 0.06; }
+.corp-icon { font-size: 18px; margin-bottom: 7px; display: block; }
+.corp-name { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; }
+.corp-sector { font-size: 11px; color: var(--text3); margin-top: 1px; white-space: nowrap; }
+
+/* ─── CHAIN CONTENT ─── */
+.chain-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 240px;
+  color: var(--text3);
+  gap: 11px;
+}
+.chain-empty p { font-size: 13px; }
+.chain-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.chain-corp-name { font-size: 19px; font-weight: 600; letter-spacing: -0.02em; }
+.chain-corp-sector {
+  font-size: 11px; color: var(--text3);
+  border: 1px solid var(--border2);
+  padding: 3px 9px; border-radius: 20px;
+}
+
+.tier-block { margin-bottom: 22px; }
+.tier-block + .tier-block { padding-top: 3px; border-top: 1px solid var(--border); }
+.tier-label {
+  display: flex; align-items: center;
+  gap: 7px; margin-bottom: 10px;
+}
+.tier-dot { width:5px; height:5px; border-radius:50%; flex-shrink:0; }
+.tier-dot.supplier   { background: var(--supplier); }
+.tier-dot.customer   { background: var(--customer); }
+.tier-dot.competitor { background: var(--competitor); }
+.tier-name { font-size:10px; font-weight:500; letter-spacing:.1em; text-transform:uppercase; color:var(--text3); }
+.tier-count { font-size:10px; font-family:'DM Mono',monospace; color:var(--text3); margin-left:auto; }
+
+.chips-wrap { display:flex; flex-wrap:wrap; gap:7px; }
+.chip {
+  display:inline-flex; align-items:center; gap:6px;
+  padding: 7px 13px;
+  border-radius:20px;
+  background:var(--bg3);
+  border:1px solid var(--border);
+  font-size:12px;
+  color:var(--text2);
+  cursor:pointer;
+  transition:all .14s ease;
+  -webkit-user-select:none; user-select:none;
+  touch-action: manipulation;
+}
+.chip:active { transform: scale(0.95); }
+.chip.active-supplier   { border-color:var(--supplier);   color:var(--supplier);   background:rgba(62,207,142,.09); }
+.chip.active-customer   { border-color:var(--customer);   color:var(--customer);   background:rgba(79,127,255,.09); }
+.chip.active-competitor { border-color:var(--competitor); color:var(--competitor); background:rgba(245,166,35,.09); }
+.chip-dot { width:5px; height:5px; border-radius:50%; flex-shrink:0; }
+
+/* ─── LOG PANEL ─── */
+.log-panel-header {
+  padding: 18px 18px 13px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.log-panel-title {
+  font-size: 13px; font-weight: 600;
+  margin-bottom: 11px;
+  display: flex; align-items: center; gap: 8px;
+  flex-wrap: wrap;
+}
+.log-target-badge {
+  font-size:11px; font-weight:400;
+  color:var(--accent);
+  background:rgba(79,127,255,.12);
+  border:1px solid rgba(79,127,255,.25);
+  padding:2px 9px; border-radius:12px;
+}
+.filter-row { display:flex; gap:6px; }
+.filter-btn {
+  flex:1;
+  display:flex; align-items:center; justify-content:center; gap:5px;
+  padding:6px 0;
+  border-radius:8px;
+  border:1px solid var(--border);
+  background:transparent;
+  color:var(--text3);
+  font-size:12px;
+  font-family:inherit;
+  cursor:pointer;
+  transition:all .14s;
+  touch-action: manipulation;
+  -webkit-user-select:none; user-select:none;
+}
+.filter-btn:active { transform: scale(0.96); }
+.filter-dot { width:5px; height:5px; border-radius:50%; flex-shrink:0; }
+.f-good .filter-dot { background:var(--good); }
+.f-warn .filter-dot { background:var(--warn); }
+.f-bad  .filter-dot { background:var(--bad); }
+.f-all.on  { border-color:var(--border2); color:var(--text); background:var(--bg4); }
+.f-good.on { border-color:rgba(62,207,142,.4); color:var(--good); background:var(--good-bg); }
+.f-warn.on { border-color:rgba(245,166,35,.4); color:var(--warn); background:var(--warn-bg); }
+.f-bad.on  { border-color:rgba(240,78,78,.4);  color:var(--bad);  background:var(--bad-bg); }
+
+.log-scroll {
+  flex:1; overflow-y:auto; padding:10px;
+  scrollbar-width:thin; scrollbar-color:var(--bg4) transparent;
+  -webkit-overflow-scrolling: touch;
+}
+.log-empty-state {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  height:180px; color:var(--text3); font-size:12px; gap:8px; text-align:center; line-height:1.7;
+}
+.log-item {
+  display:flex; gap:10px; align-items:flex-start;
+  padding:11px 12px;
+  border-radius:var(--radius);
+  border:1px solid var(--border);
+  background:var(--bg3);
+  margin-bottom:6px;
+  cursor:pointer;
+  transition:all .14s;
+  animation:slideIn .2s ease both;
+}
+@keyframes slideIn { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:none} }
+.log-item:active { background:var(--bg4); }
+.log-signal {
+  flex-shrink:0; width:18px; height:18px;
+  border-radius:50%; display:flex; align-items:center; justify-content:center;
+  margin-top:1px; font-size:10px; font-weight:600;
+}
+.sig-good { background:var(--good-bg); color:var(--good); border:1px solid rgba(62,207,142,.3); }
+.sig-warn { background:var(--warn-bg); color:var(--warn); border:1px solid rgba(245,166,35,.3); }
+.sig-bad  { background:var(--bad-bg);  color:var(--bad);  border:1px solid rgba(240,78,78,.3); }
+.log-body { flex:1; min-width:0; }
+.log-text { font-size:12px; color:var(--text); line-height:1.5; margin-bottom:5px; }
+.log-meta { display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+.log-date { font-size:10px; font-family:'DM Mono',monospace; color:var(--text3); }
+.log-tag { font-size:10px; padding:1px 7px; border-radius:6px; font-weight:500; }
+.tag-disclosure { background:rgba(79,127,255,.12); color:#7fa4ff; border:1px solid rgba(79,127,255,.2); }
+.tag-news       { background:var(--bg4); color:var(--text3); border:1px solid var(--border); }
+
+.stats-bar {
+  padding:9px 12px;
+  border-top:1px solid var(--border);
+  display:flex; gap:12px; flex-shrink:0;
+}
+.stat-item { display:flex; align-items:center; gap:5px; font-size:11px; }
+.stat-dot  { width:6px; height:6px; border-radius:50%; }
+.stat-label { color:var(--text3); }
+.stat-val   { font-family:'DM Mono',monospace; font-size:11px; }
+.stat-val.good { color:var(--good); }
+.stat-val.warn { color:var(--warn); }
+.stat-val.bad  { color:var(--bad); }
+
+/* ─── MOBILE TAB BAR ─── */
+.mob-tabs {
+  display:flex;
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+  background:var(--bg2);
+}
+.mob-tab {
+  flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:3px; padding:10px 4px;
+  font-size:11px; color:var(--text3);
+  cursor:pointer; border:none; background:transparent;
+  font-family:inherit;
+  transition:color .14s;
+  position:relative;
+  -webkit-user-select:none; user-select:none;
+  touch-action:manipulation;
+}
+.mob-tab.active { color:var(--accent); }
+.mob-tab.active::after {
+  content:'';
+  position:absolute; bottom:0; left:20%; right:20%;
+  height:2px; background:var(--accent); border-radius:2px 2px 0 0;
+}
+.mob-tab svg { width:18px; height:18px; }
+
+/* 탭 콘텐츠 */
+.mob-page { display:none; flex:1; overflow:hidden; flex-direction:column; }
+.mob-page.active { display:flex; }
+
+/* 모바일 corp section */
+.mob-corp-section { padding:16px 16px 0; border-bottom:1px solid var(--border); flex-shrink:0; }
+.mob-chain-panel  { flex:1; overflow-y:auto; padding:18px 16px; -webkit-overflow-scrolling:touch; }
+
+/* 모바일 로그 패널 */
+.mob-log-panel { display:flex; flex-direction:column; flex:1; overflow:hidden; }
+
+/* ─── RESPONSIVE ─── */
+@media (max-width: 680px) {
+  .desktop-layout { display:none; }
+  .mobile-layout  { display:flex; }
+}
+
+::-webkit-scrollbar { width:3px; height:3px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--bg4); border-radius:3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <span class="logo-dot"></span>
+    밸류체인 맵
+  </div>
+  <span class="header-date" id="headerDate"></span>
+</header>
+
+<!-- ══════════ DESKTOP ══════════ -->
+<div class="desktop-layout">
+  <div class="corp-section">
+    <div class="section-label">대기업 선택</div>
+    <div class="corp-grid" id="d-corpGrid"></div>
+  </div>
+  <div class="chain-panel" id="d-chainPanel">
+    <div class="chain-empty" id="d-chainEmpty">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.3"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+      <p>대기업을 선택하면 밸류체인이 표시됩니다</p>
+    </div>
+    <div id="d-chainContent" style="display:none"></div>
+  </div>
+  <div class="log-panel">
+    <div class="log-panel-header">
+      <div class="log-panel-title">
+        공시 · 뉴스 로그
+        <span class="log-target-badge" id="d-logBadge" style="display:none"></span>
+      </div>
+      <div class="filter-row">
+        <button class="filter-btn f-all on" data-f="all"  onclick="setFilter('d','all',this)">전체</button>
+        <button class="filter-btn f-good"   data-f="good" onclick="setFilter('d','good',this)"><span class="filter-dot"></span>호재</button>
+        <button class="filter-btn f-warn"   data-f="warn" onclick="setFilter('d','warn',this)"><span class="filter-dot"></span>주의</button>
+        <button class="filter-btn f-bad"    data-f="bad"  onclick="setFilter('d','bad',this)"><span class="filter-dot"></span>악재</button>
+      </div>
+    </div>
+    <div class="log-scroll" id="d-logScroll">
+      <div class="log-empty-state">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.35"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <span>기업을 선택하면<br>공시·뉴스가 표시됩니다</span>
+      </div>
+    </div>
+    <div class="stats-bar" id="d-statsBar" style="display:none">
+      <div class="stat-item"><span class="stat-dot" style="background:var(--good)"></span><span class="stat-label">호재</span><span class="stat-val good" id="d-cntGood">0</span></div>
+      <div class="stat-item"><span class="stat-dot" style="background:var(--warn)"></span><span class="stat-label">주의</span><span class="stat-val warn" id="d-cntWarn">0</span></div>
+      <div class="stat-item"><span class="stat-dot" style="background:var(--bad)"></span><span class="stat-label">악재</span><span class="stat-val bad"  id="d-cntBad">0</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MOBILE ══════════ -->
+<div class="mobile-layout">
+
+  <!-- 탭 바 -->
+  <div class="mob-tabs">
+    <button class="mob-tab active" id="m-tab-corp" onclick="mobTab('corp')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>
+      기업선택
+    </button>
+    <button class="mob-tab" id="m-tab-chain" onclick="mobTab('chain')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+      밸류체인
+    </button>
+    <button class="mob-tab" id="m-tab-log" onclick="mobTab('log')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      공시·뉴스
+      <span id="m-logDot" style="display:none;position:absolute;top:8px;right:calc(50% - 18px);width:6px;height:6px;border-radius:50%;background:var(--accent);"></span>
+    </button>
+  </div>
+
+  <!-- 기업 선택 탭 -->
+  <div class="mob-page active" id="m-page-corp">
+    <div class="mob-corp-section">
+      <div class="section-label">대기업 선택</div>
+      <div class="corp-grid" id="m-corpGrid"></div>
+    </div>
+    <div style="padding:20px 16px; color:var(--text3); font-size:12px; text-align:center; line-height:1.8;">
+      기업을 선택한 뒤<br>아래 탭에서 밸류체인과 공시·뉴스를 확인하세요
+    </div>
+  </div>
+
+  <!-- 밸류체인 탭 -->
+  <div class="mob-page" id="m-page-chain">
+    <div class="mob-chain-panel" id="m-chainPanel">
+      <div class="chain-empty" id="m-chainEmpty">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.3"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        <p>기업 선택 탭에서 대기업을 먼저 선택하세요</p>
+      </div>
+      <div id="m-chainContent" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- 공시·뉴스 탭 -->
+  <div class="mob-page" id="m-page-log">
+    <div class="mob-log-panel">
+      <div class="log-panel-header">
+        <div class="log-panel-title">
+          공시 · 뉴스 로그
+          <span class="log-target-badge" id="m-logBadge" style="display:none"></span>
+        </div>
+        <div class="filter-row">
+          <button class="filter-btn f-all on" data-f="all"  onclick="setFilter('m','all',this)">전체</button>
+          <button class="filter-btn f-good"   data-f="good" onclick="setFilter('m','good',this)"><span class="filter-dot"></span>호재</button>
+          <button class="filter-btn f-warn"   data-f="warn" onclick="setFilter('m','warn',this)"><span class="filter-dot"></span>주의</button>
+          <button class="filter-btn f-bad"    data-f="bad"  onclick="setFilter('m','bad',this)"><span class="filter-dot"></span>악재</button>
+        </div>
+      </div>
+      <div class="log-scroll" id="m-logScroll">
+        <div class="log-empty-state">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.35"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <span>기업을 선택하면<br>공시·뉴스가 표시됩니다</span>
+        </div>
+      </div>
+      <div class="stats-bar" id="m-statsBar" style="display:none">
+        <div class="stat-item"><span class="stat-dot" style="background:var(--good)"></span><span class="stat-label">호재</span><span class="stat-val good" id="m-cntGood">0</span></div>
+        <div class="stat-item"><span class="stat-dot" style="background:var(--warn)"></span><span class="stat-label">주의</span><span class="stat-val warn" id="m-cntWarn">0</span></div>
+        <div class="stat-item"><span class="stat-dot" style="background:var(--bad)"></span><span class="stat-label">악재</span><span class="stat-val bad"  id="m-cntBad">0</span></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /.mobile-layout -->
+
+<script>
+/* ── DATA ── */
+const corps = [
+  { id:'samsung',  name:'삼성전자',   sector:'반도체·전자',  icon:'🔵' },
+  { id:'sk',       name:'SK하이닉스', sector:'반도체',       icon:'🟣' },
+  { id:'hyundai',  name:'현대자동차', sector:'자동차',       icon:'🟢' },
+  { id:'lg',       name:'LG화학',     sector:'화학·배터리',  icon:'🟠' },
+  { id:'posco',    name:'POSCO',      sector:'철강',         icon:'⚫' },
+  { id:'kakao',    name:'카카오',     sector:'IT·플랫폼',    icon:'🟡' },
+];
+
+const chains = {
+  samsung: {
+    supplier:   ['삼성SDI','삼성전기','DB하이텍','원익IPS','SK실트론','동진쎄미켐','솔브레인','한미반도체','주성엔지니어링'],
+    customer:   ['애플','구글','퀄컴','아마존 AWS','LG전자','소니','마이크로소프트'],
+    competitor: ['TSMC','인텔','마이크론','SK하이닉스','웨스턴디지털'],
+  },
+  sk: {
+    supplier:   ['SK머티리얼즈','원익IPS','유진테크','에스앤에스텍','씨앤지하이테크','DL머티리얼즈','한솔케미칼'],
+    customer:   ['엔비디아','애플','AMD','인텔','테슬라','마이크로소프트','구글'],
+    competitor: ['삼성전자','마이크론','키옥시아','YMTC','웨스턴디지털'],
+  },
+  hyundai: {
+    supplier:   ['현대모비스','현대위아','한온시스템','세종공업','화신','성우하이텍','에스엘','만도'],
+    customer:   ['개인 소비자','법인 리스','현대캐피탈','택시·렌터카','수출 딜러망'],
+    competitor: ['기아','Toyota','폭스바겐','테슬라','포드','GM','BMW'],
+  },
+  lg: {
+    supplier:   ['일진머티리얼즈','포스코퓨처엠','에코프로비엠','엘앤에프','솔루스첨단소재','동화기업'],
+    customer:   ['현대자동차','GM','포드','폭스바겐','BMW','LG에너지솔루션','스텔란티스'],
+    competitor: ['삼성SDI','SK온','CATL','BYD','파나소닉','노스볼트'],
+  },
+  posco: {
+    supplier:   ['브라질 발레','호주 BHP','포스코에너지','현대글로비스','고려아연','영풍'],
+    customer:   ['현대자동차','기아','삼성전자','LG전자','두산중공업','현대중공업','대우조선'],
+    competitor: ['현대제철','동국제강','일본제철','아르셀로미탈','바오스틸'],
+  },
+  kakao: {
+    supplier:   ['AWS','KT','SKT','LG U+','카카오엔터','카카오페이지','콘텐츠 CP사'],
+    customer:   ['카카오뱅크 고객','카카오페이 가맹점','카카오모빌리티','일반 광고주','카카오엔터'],
+    competitor: ['네이버','쿠팡','토스','당근마켓','구글','메타','라인'],
+  },
+};
+
+const logs = {
+  samsung: [
+    { signal:'good', text:'자사주 소각 예정 — 1조 원 규모 이사회 결의', date:'2025.05.29', type:'공시' },
+    { signal:'good', text:'HBM4 양산 계획 공식 발표, NVIDIA 공급 확대 협의 중', date:'2025.05.27', type:'뉴스' },
+    { signal:'warn', text:'1분기 영업이익 전분기 대비 12% 감소', date:'2025.04.30', type:'공시' },
+    { signal:'bad',  text:'미국 추가 관세 협상 불확실성 지속, 수출 리스크 증가', date:'2025.05.20', type:'뉴스' },
+    { signal:'good', text:'파운드리 GAA 2nm 수율 업계 예상 상회', date:'2025.05.15', type:'뉴스' },
+    { signal:'warn', text:'DS부문 주요 임원 인사이동 발표', date:'2025.05.10', type:'공시' },
+  ],
+  sk: [
+    { signal:'good', text:'HBM3E 16단 개발 완료, NVIDIA 공급 인증 절차 진행 중', date:'2025.05.26', type:'뉴스' },
+    { signal:'good', text:'2분기 실적 가이던스 상향 조정 공시', date:'2025.05.20', type:'공시' },
+    { signal:'bad',  text:'중국 우시 공장 화재 발생, 일부 생산 라인 차질', date:'2025.05.18', type:'뉴스' },
+    { signal:'warn', text:'환율 변동으로 외화환산손실 전분기 대비 증가', date:'2025.04.28', type:'공시' },
+    { signal:'good', text:'M14 공장 3분기 Full Capa 달성 예정', date:'2025.04.15', type:'뉴스' },
+  ],
+  hyundai: [
+    { signal:'good', text:'미국 조지아 전기차 전용 공장 추가 라인 투자 확정', date:'2025.05.28', type:'공시' },
+    { signal:'warn', text:'북미 딜러 재고 증가세, 인센티브 확대 검토 중', date:'2025.05.22', type:'뉴스' },
+    { signal:'good', text:'글로벌 친환경차 판매 월간 최고 기록 경신', date:'2025.05.10', type:'뉴스' },
+    { signal:'bad',  text:'유럽 배터리 규제 강화로 원가 구조 부담 증가', date:'2025.04.25', type:'뉴스' },
+    { signal:'good', text:'아이오닉9 북미 사전계약 5만 대 돌파', date:'2025.04.18', type:'뉴스' },
+  ],
+  lg: [
+    { signal:'good', text:'GM과 배터리 장기 공급계약 갱신 완료 — 2030년까지', date:'2025.05.25', type:'공시' },
+    { signal:'bad',  text:'리튬 가격 급락으로 양극재 단가 하락 지속', date:'2025.05.19', type:'뉴스' },
+    { signal:'warn', text:'분리막 공장 설비 정기 점검으로 일시 가동 중단', date:'2025.05.08', type:'공시' },
+    { signal:'good', text:'전고체 배터리 파일럿 라인 착공식 개최', date:'2025.04.30', type:'뉴스' },
+    { signal:'warn', text:'중국 CATL 저가 공세로 유럽 수주 경쟁 심화', date:'2025.04.20', type:'뉴스' },
+  ],
+  posco: [
+    { signal:'good', text:'자사주 소각 500억 규모 이사회 결의', date:'2025.05.27', type:'공시' },
+    { signal:'warn', text:'중국산 저가 철강 수입 증가로 국내 시장가 하락', date:'2025.05.21', type:'뉴스' },
+    { signal:'good', text:'포항 2공장 스마트팩토리 전환 완료, 생산성 18% 향상', date:'2025.05.12', type:'공시' },
+    { signal:'bad',  text:'EU 탄소국경세 시행으로 유럽 수출 원가 약 9% 증가', date:'2025.04.20', type:'뉴스' },
+    { signal:'warn', text:'원료탄 가격 재상승 조짐, 원가 부담 확대 우려', date:'2025.04.10', type:'뉴스' },
+  ],
+  kakao: [
+    { signal:'bad',  text:'공정위 플랫폼 독점 행위 조사 개시 통보 수령', date:'2025.05.26', type:'공시' },
+    { signal:'warn', text:'MAU 성장률 둔화, 1분기 전년 동기 대비 2% 증가에 그쳐', date:'2025.05.15', type:'뉴스' },
+    { signal:'good', text:'카카오페이 분기 기준 첫 흑자전환 달성', date:'2025.05.08', type:'공시' },
+    { signal:'good', text:'AI 서비스 신규 출시, 일간 활성 사용자 3배 급증', date:'2025.04.29', type:'뉴스' },
+    { signal:'warn', text:'카카오엔터 드라마 제작 비용 증가, 수익성 하락', date:'2025.04.18', type:'뉴스' },
+  ],
+};
+
+/* ── STATE ── */
+let activeCorpId = null;
+let state = {
+  d: { filter:'all', logs:[] },
+  m: { filter:'all', logs:[] },
+};
+
+/* ── INIT ── */
+document.getElementById('headerDate').textContent =
+  new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit'});
+renderCorps('d');
+renderCorps('m');
+
+/* ── MOBILE TAB ── */
+function mobTab(tab) {
+  ['corp','chain','log'].forEach(t => {
+    document.getElementById(`m-tab-${t}`).classList.toggle('active', t===tab);
+    document.getElementById(`m-page-${t}`).classList.toggle('active', t===tab);
+  });
+  if (tab==='log') document.getElementById('m-logDot').style.display='none';
+}
+
+/* ── RENDER CORPS ── */
+function renderCorps(ns) {
+  document.getElementById(`${ns}-corpGrid`).innerHTML = corps.map(c=>`
+    <div class="corp-card${activeCorpId===c.id?' active':''}" onclick="selectCorp('${c.id}')">
+      <span class="corp-icon">${c.icon}</span>
+      <div class="corp-name">${c.name}</div>
+      <div class="corp-sector">${c.sector}</div>
+    </div>
+  `).join('');
+}
+
+/* ── SELECT CORP ── */
+function selectCorp(id) {
+  activeCorpId = id;
+  renderCorps('d');
+  renderCorps('m');
+  renderChain('d', id);
+  renderChain('m', id);
+  loadLogs('d', id, corps.find(c=>c.id===id).name);
+  loadLogs('m', id, corps.find(c=>c.id===id).name);
+  // 모바일: 밸류체인 탭으로 자동 이동
+  if (window.innerWidth <= 680) {
+    mobTab('chain');
+  }
+  // 공시탭 알림 점
+  document.getElementById('m-logDot').style.display = 'block';
+}
+
+/* ── RENDER CHAIN ── */
+function renderChain(ns, id) {
+  const corp = corps.find(c=>c.id===id);
+  const data = chains[id];
+  document.getElementById(`${ns}-chainEmpty`).style.display = 'none';
+  const ct = document.getElementById(`${ns}-chainContent`);
+  ct.style.display = 'block';
+  ct.innerHTML = `
+    <div class="chain-header">
+      <span class="chain-corp-name">${corp.name}</span>
+      <span class="chain-corp-sector">${corp.sector}</span>
+    </div>
+    ${renderTier(ns, 'supplier',   '공급사 · Supplier',   data.supplier)}
+    ${renderTier(ns, 'customer',   '고객사 · Customer',   data.customer)}
+    ${renderTier(ns, 'competitor', '경쟁사 · Competitor', data.competitor)}
+  `;
+}
+
+function renderTier(ns, type, label, companies) {
+  return `
+    <div class="tier-block">
+      <div class="tier-label">
+        <span class="tier-dot ${type}"></span>
+        <span class="tier-name">${label}</span>
+        <span class="tier-count">${companies.length}</span>
+      </div>
+      <div class="chips-wrap">
+        ${companies.map(n=>`
+          <div class="chip" data-type="${type}" data-ns="${ns}" onclick="selectChip(this,'${n.replace(/'/g,"\\'")}')">
+            <span class="chip-dot" style="background:var(--${type})"></span>
+            ${n}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+/* ── SELECT CHIP ── */
+function selectChip(el, name) {
+  const ns = el.dataset.ns;
+  // 같은 ns의 chip만 리셋
+  document.querySelectorAll(`[data-ns="${ns}"].chip`).forEach(c=>c.className=`chip`);
+  el.dataset.ns = ns; // 유지
+  const type = el.dataset.type;
+  el.classList.add(`active-${type}`);
+  loadLogs(ns, activeCorpId, name);
+  // 모바일: 칩 클릭하면 로그 탭으로
+  if (ns==='m') {
+    setTimeout(()=>mobTab('log'), 150);
+  }
+}
+
+/* ── LOAD LOGS ── */
+function loadLogs(ns, corpId, targetName) {
+  document.getElementById(`${ns}-logBadge`).textContent = targetName;
+  document.getElementById(`${ns}-logBadge`).style.display = '';
+  document.getElementById(`${ns}-statsBar`).style.display = 'flex';
+  state[ns].filter = 'all';
+  state[ns].logs = logs[corpId] || [];
+  // 필터 버튼 초기화
+  const panel = ns==='d'
+    ? document.querySelector('.desktop-layout .log-panel')
+    : document.getElementById('m-page-log');
+  panel.querySelectorAll('.filter-btn').forEach(b=>b.classList.toggle('on', b.dataset.f==='all'));
+  updateStats(ns);
+  renderLogs(ns);
+}
+
+function updateStats(ns) {
+  const l = state[ns].logs;
+  document.getElementById(`${ns}-cntGood`).textContent = l.filter(x=>x.signal==='good').length;
+  document.getElementById(`${ns}-cntWarn`).textContent = l.filter(x=>x.signal==='warn').length;
+  document.getElementById(`${ns}-cntBad`).textContent  = l.filter(x=>x.signal==='bad').length;
+}
+
+const sigMap = {
+  good:{cls:'sig-good',sym:'✓'},
+  warn:{cls:'sig-warn',sym:'!'},
+  bad: {cls:'sig-bad', sym:'✕'},
+};
+
+function renderLogs(ns) {
+  const f = state[ns].filter;
+  const list = f==='all' ? state[ns].logs : state[ns].logs.filter(l=>l.signal===f);
+  const scroll = document.getElementById(`${ns}-logScroll`);
+  if (!list.length) {
+    scroll.innerHTML = `<div class="log-empty-state">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.3"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span>해당 조건의 로그가 없습니다</span>
+    </div>`; return;
+  }
+  scroll.innerHTML = list.map((l,i)=>`
+    <div class="log-item" style="animation-delay:${i*.04}s">
+      <div class="log-signal ${sigMap[l.signal].cls}">${sigMap[l.signal].sym}</div>
+      <div class="log-body">
+        <div class="log-text">${l.text}</div>
+        <div class="log-meta">
+          <span class="log-date">${l.date}</span>
+          <span class="log-tag ${l.type==='공시'?'tag-disclosure':'tag-news'}">${l.type}</span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function setFilter(ns, f, btn) {
+  state[ns].filter = f;
+  const panel = ns==='d'
+    ? document.querySelector('.desktop-layout .log-panel')
+    : document.getElementById('m-page-log');
+  panel.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  renderLogs(ns);
+}
+</script>
+</body>
+</html>
